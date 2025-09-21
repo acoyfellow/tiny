@@ -1,0 +1,20 @@
+{
+  "name": "tinybase-cloudflare-poc",
+  "version": "1.0.0",
+  "description": "TinyBase with Cloudflare Durable Objects POC",
+  "main": "src/worker.tsx",
+  "scripts": {
+    "dev": "bun alchemy dev",
+    "deploy": "bun alchemy.run.ts",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "tinybase": "^6.6.0",
+    "hono": "^4.9.8",
+    "alchemy": "latest"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250921.0",
+    "typescript": "^5.9.2"
+  }
+}
