@@ -1,21 +1,24 @@
-# TinyBase + Cloudflare Durable Objects
+# tiny
 
-A minimal example of building real-time collaborative apps with TinyBase and Cloudflare Durable Objects.
+Realtime collaborative todo list built with TinyBase + Cloudflare Durable Objects.
 
 ## Features
 
-- **Server-side rendering** with Hono JSX
-- **Real-time persistence** via Cloudflare Durable Objects
-- **No flicker loading** - data pre-rendered on the edge
+- **User-based sharding** - Each user gets their own 128MB Durable Object
+- **Real-time collaboration** - WebSocket sync between browser tabs
+- **Server-side rendering** with Hono JSX (no loading flicker)
+- **Rate limiting** - Protection against abuse
 - **Modern stack** - TypeScript, Tailwind CSS, Alchemy deployment
 
 ## Architecture
 
 ```
-User Request → Cloudflare Worker (Hono) → Durable Object → Storage
-                      ↓
-              Pre-rendered JSX with data
+User Request → Cloudflare Worker (Hono) → User-specific Durable Object
+                      ↓                            ↓
+              Pre-rendered JSX + WebSocket    Real-time sync
 ```
+
+**User isolation:** `?userId=alice` → `user-alice` Durable Object
 
 ## Quick Start
 
@@ -94,14 +97,25 @@ const obj = env.TINYBASE_STORE.getByName(`${region}-user-${userId}`);
 - **Cost-effective**: Pay only for usage
 - **Developer experience**: Hot reloading, modern tooling
 
+## Usage
+
+Try different users to see isolation in action:
+
+- `http://localhost:1338/?userId=alice`
+- `http://localhost:1338/?userId=bob`
+- `http://localhost:1338/?userId=team1`
+
+Each user gets their own private todo list with real-time sync between browser tabs.
+
 ## Development
 
 The app demonstrates several patterns:
 
-1. **Server-side data loading** - Eliminates loading spinners
-2. **Progressive enhancement** - Works without JavaScript
-3. **Real-time updates** - Changes persist immediately
+1. **User-based sharding** - Automatic isolation via URL parameter
+2. **Server-side data loading** - Eliminates loading spinners
+3. **Real-time collaboration** - WebSocket sync between tabs
 4. **Resource monitoring** - Storage usage displayed in UI
+5. **Rate limiting** - 100 requests/minute per IP
 
 ## Deployment
 
