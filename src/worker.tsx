@@ -1,6 +1,15 @@
 import { Hono } from 'hono';
-import { jsx } from 'hono/jsx';
 import { TinyBaseStore } from './durable-object';
+
+// Cloudflare Workers types
+declare global {
+  interface DurableObjectNamespace {
+    getByName(name: string): DurableObjectStub;
+  }
+  interface DurableObjectStub {
+    fetch(request: Request): Promise<Response>;
+  }
+}
 
 export interface Env {
   TINYBASE_STORE: DurableObjectNamespace;
@@ -8,34 +17,94 @@ export interface Env {
 
 const app = new Hono<{ Bindings: Env }>();
 
+// Rate limiting state (in-memory)
+const rateLimiter = new Map<string, { count: number; resetTime: number }>();
+
+// Helper functions
+function getUserId(request: Request): string {
+  // Try to get user from URL query parameter first
+  const url = new URL(request.url);
+  const queryUserId = url.searchParams.get('userId');
+  if (queryUserId) {
+    return queryUserId;
+  }
+
+  // Try to get user from Authorization header
+  const authHeader = request.headers.get('Authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    return authHeader.slice(7);
+  }
+
+  // Try to get from session cookie
+  const cookieHeader = request.headers.get('Cookie');
+  if (cookieHeader) {
+    const sessionMatch = cookieHeader.match(/session=([^;]+)/);
+    if (sessionMatch) {
+      return sessionMatch[1];
+    }
+  }
+
+  // Generate a session ID for anonymous users
+  return `anon-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+function isRateLimited(clientIP: string): boolean {
+  const now = Date.now();
+  const windowMs = 60 * 1000; // 1 minute window
+  const maxRequests = 100; // 100 requests per minute
+  
+  const current = rateLimiter.get(clientIP);
+  
+  if (!current || now > current.resetTime) {
+    // Reset or initialize
+    rateLimiter.set(clientIP, { count: 1, resetTime: now + windowMs });
+    return false;
+  }
+  
+  if (current.count >= maxRequests) {
+    return true;
+  }
+  
+  current.count++;
+  return false;
+}
+
 // JSX-based frontend
-const TodoApp = ({ initialTodos = {} }: { initialTodos?: Record<string, any> }) => (
+const TodoApp = ({ initialTodos = {}, userId }: { initialTodos?: Record<string, any>; userId?: string }) => (
   <html lang="en">
     <head>
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <title>TinyBase + Cloudflare POC</title>
+      <title>tiny: a TinyBase + Cloudflare POC</title>
       <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
       <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
       <script src="https://unpkg.com/tinybase@4.8.4/lib/umd/tinybase.js"></script>
     </head>
     <body class="bg-gray-100 min-h-screen py-8" style="font-family: 'Google Sans', sans-serif;">
       <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-6">
-        <h1 class="text-3xl font-bold text-gray-800 mb-6">TinyBase + Cloudflare Durable Objects POC</h1>
+        <h1 class="text-3xl font-bold text-gray-800 mb-6 text-balance">tiny
+          <small class="text-lg text-gray-500 block">a TinyBase + Cloudflare Durable Objects Example</small>
+        </h1>
 
-        <div class="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-lg">
+        <div class="mb-6 p-4 bg-green-50 border-l-4 border-green-400 rounded-r-lg">
           <div class="flex">
             <div class="ml-3">
-              <p class="text-sm text-yellow-700">
-                <strong>Architecture Limits:</strong> Single DO = 128MB storage (~100K todos), CPU throttling at scale, no multi-tenant isolation
+              <p class="text-sm text-green-700">
+                <strong>Architecture:</strong> User-based sharding enabled! Each user gets 128MB storage (~100K todos per user) with rate limiting protection
               </p>
             </div>
           </div>
         </div>
 
-        <div class="mb-6">
-          <span class="text-sm text-gray-600">Connection: </span>
-          <span id="connectionStatus" class="px-2 py-1 rounded text-xs font-semibold bg-green-100 text-green-800">Connected</span>
+        <div class="mb-6 flex gap-4">
+          <div>
+            <span class="text-sm text-gray-600">Connection: </span>
+            <span id="connectionStatus" class="px-2 py-1 rounded text-xs font-semibold bg-green-100 text-green-800">Connected</span>
+          </div>
+          <div>
+            <span class="text-sm text-gray-600">User: </span>
+            <span class="px-2 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-800">{userId || 'Loading...'}</span>
+          </div>
         </div>
 
         <div class="mb-8">
@@ -107,9 +176,10 @@ const TodoApp = ({ initialTodos = {} }: { initialTodos?: Record<string, any> }) 
         const store = TinyBase.createStore();
         let todos = ${JSON.stringify(initialTodos)};
 
-        // Simple WebSocket for real-time sync
+        // Simple WebSocket for real-time sync (with user ID)
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = protocol + '//' + window.location.host + '/todos';
+        const userId = '${userId}';
+        const wsUrl = protocol + '//' + window.location.host + '/todos?userId=' + encodeURIComponent(userId);
         let websocket;
 
         function connectWebSocket() {
@@ -278,17 +348,42 @@ const TodoApp = ({ initialTodos = {} }: { initialTodos?: Record<string, any> }) 
 );
 
 app.get('/', async (c) => {
-  const obj = c.env.TINYBASE_STORE.getByName('default-store');
+  // Rate limiting
+  const clientIP = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown';
+  if (isRateLimited(clientIP)) {
+    return c.text('Rate limited. Please try again later.', 429);
+  }
+
+  // Get user-specific DO
+  const userId = getUserId(c.req.raw);
+  const obj = c.env.TINYBASE_STORE.getByName(`user-${userId}`);
   const response = await obj.fetch(new Request('http://localhost/todos'));
   const data = await response.json();
   const initialTodos = data.tables?.todos || {};
 
-  return c.html(<TodoApp initialTodos={initialTodos} />);
+  // Set session cookie for anonymous users
+  if (userId.startsWith('anon-')) {
+    c.header('Set-Cookie', `session=${userId}; Path=/; Max-Age=86400; HttpOnly`);
+  }
+
+  return c.html(<TodoApp initialTodos={initialTodos} userId={userId} />);
 });
 
 // Route WebSocket requests to Durable Object
 app.all('/todos', async (c) => {
-  const obj = c.env.TINYBASE_STORE.getByName('default-store');
+  // Rate limiting
+  const clientIP = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown';
+  if (isRateLimited(clientIP)) {
+    return c.text('Rate limited. Please try again later.', 429);
+  }
+
+  // Get user ID from query parameter or fallback to header/cookie detection
+  let userId = c.req.query('userId');
+  if (!userId) {
+    userId = getUserId(c.req.raw);
+  }
+
+  const obj = c.env.TINYBASE_STORE.getByName(`user-${userId}`);
   return obj.fetch(c.req.raw);
 });
 
