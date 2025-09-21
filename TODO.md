@@ -56,20 +56,6 @@ D1:  Cold storage, analytics, search
 
 ## Quick Wins (No Re-architecture)
 
-### A. **Add User Context** (30 min)
-```javascript
-// Extract user from auth or generate session
-const userId = getUserId(request);
-const obj = env.TINYBASE_STORE.getByName(`user-${userId}`);
-```
-
-### B. **Add Rate Limiting** (15 min)
-```javascript
-// Simple in-memory rate limit per IP
-const rateLimiter = new Map();
-if (rateLimiter.get(clientIP) > 100) throw new Error('Rate limited');
-```
-
 ### C. **Add Metrics** (20 min)
 ```javascript
 // Log to console or external service

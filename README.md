@@ -47,11 +47,35 @@ TODO.md                 # Scaling architecture notes
 
 ## Current Limits
 
-- **Storage**: 128MB per Durable Object (~100K todos)
-- **Scope**: Single global store (no multi-tenancy)
-- **Scale**: Suitable for prototypes and small apps
+- **Storage**: 128MB per user (~100K todos per user)
+- **Users**: Unlimited (each gets their own Durable Object)
+- **Scale**: Suitable for most real-world applications
 
-See `TODO.md` for scaling strategies including user sharding, organization isolation, and hybrid architectures.
+## Scaling Roadmap
+
+**Current architecture handles most use cases.** When you need more:
+
+### Phase 1: Unlimited Storage (D1 Hybrid)
+```typescript
+// Hot data in DO, cold storage in D1
+const hotTodos = await durableObject.getRecentTodos();
+const coldTodos = await db.prepare("SELECT * FROM todos WHERE updated_at < ?").bind(cutoff).all();
+```
+
+### Phase 2: Multi-tenancy
+```typescript
+// Organization-based sharding
+const obj = env.TINYBASE_STORE.getByName(`org-${orgId}-user-${userId}`);
+```
+
+### Phase 3: Geographic Distribution
+```typescript
+// Regional DOs for latency optimization
+const region = getClosestRegion(clientIP);
+const obj = env.TINYBASE_STORE.getByName(`${region}-user-${userId}`);
+```
+
+**When to scale:** Each phase unlocks 10-100x more capacity. Start simple, scale when needed.
 
 ## Tech Stack
 

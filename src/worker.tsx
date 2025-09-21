@@ -80,76 +80,108 @@ const TodoApp = ({ initialTodos = {}, userId }: { initialTodos?: Record<string, 
       <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
       <script src="https://unpkg.com/tinybase@4.8.4/lib/umd/tinybase.js"></script>
     </head>
-    <body class="bg-gray-100 min-h-screen py-8" style="font-family: 'Google Sans', sans-serif;">
-      <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-6">
-        <h1 class="text-3xl font-bold text-gray-800 mb-6 text-balance">tiny
-          <small class="text-lg text-gray-500 block">a TinyBase + Cloudflare Durable Objects Example</small>
-        </h1>
-
-        <div class="mb-6 p-4 bg-green-50 border-l-4 border-green-400 rounded-r-lg">
-          <div class="flex">
-            <div class="ml-3">
-              <p class="text-sm text-green-700">
-                <strong>Architecture:</strong> User-based sharding enabled! Each user gets 128MB storage (~100K todos per user) with rate limiting protection
-              </p>
+    <body class="bg-white min-h-screen" style="font-family: 'Google Sans', sans-serif;">
+      <div class="max-w-4xl mx-auto p-6">
+        <div class="mb-8">
+          <h1 class="text-5xl font-bold mb-2 text-black">tiny</h1>
+          <div class="my-6 flex items-center gap-6 text-black">
+            <div class="flex items-center gap-2">
+              <span>Connection:</span>
+              <span id="connectionStatus" class="px-2 py-1 bg-black text-white text-sm font-medium">Connected</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span>User:</span>
+              <span class="px-2 py-1 border border-black text-sm font-medium">{userId || 'Loading...'}</span>
             </div>
           </div>
         </div>
-
-        <div class="mb-6 flex gap-4">
+        <div class="text-lg mb-4">
+          <span class="text-black font-medium">
+            Realtime Collaborative Todo List with User-based Sharding
+          </span>
+          <span class="text-black"> → </span>
+          <a href="https://github.com/acoyfellow/tiny" target="_blank" class="text-black font-medium underline hover:no-underline">
+            GitHub
+          </a>
+        </div>
+        <div class="mb-6 p-4 border-l-4 border-black bg-gray-50 text-black space-y-2">
+          
           <div>
-            <span class="text-sm text-gray-600">Connection: </span>
-            <span id="connectionStatus" class="px-2 py-1 rounded text-xs font-semibold bg-green-100 text-green-800">Connected</span>
+            <span class="font-semibold">What is this?</span> This is a simple example of a TinyBase + Cloudflare Durable Objects application. Each user gets their own private todo list with real-time sync.
           </div>
           <div>
-            <span class="text-sm text-gray-600">User: </span>
-            <span class="px-2 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-800">{userId || 'Loading...'}</span>
+            <span class="font-semibold">Architecture:</span> User-based sharding enabled! Each user gets 128MB storage (~100K todos per user) with rate limiting protection
+          </div>
+          <div class="mb-6 p-4 border border-black bg-gray-50">
+            <div class="text-black">
+              <span class="text-lg">💡</span> <span class="font-semibold">Try different users:</span> Add{" "}
+              <code class="bg-white px-1 border">?userId=alice</code> or{" "}
+              <code class="bg-white px-1 border">?userId=bob</code> to the URL to test user isolation. Each user gets their own private todo list with real-time sync!
+            </div>
+          </div>
+          <div class="mb-8 text-black">
+            <span class="font-semibold">Tech Stack:</span>
+            <span> <a href="https://hono.dev" target="_blank" class="text-black underline hover:no-underline">Hono</a> </span>
+            <span>•</span>
+            <span> <a href="https://developers.cloudflare.com/workers/" target="_blank" class="text-black underline hover:no-underline">Cloudflare Workers</a> </span>
+            <span>•</span>
+            <span> <a href="https://alchemy.run" target="_blank" class="text-black underline hover:no-underline">Alchemy.run</a> </span>
+            <span>•</span>
+            <span> <a href="https://tailwindcss.com" target="_blank" class="text-black underline hover:no-underline">Tailwind CSS</a></span>
           </div>
         </div>
 
+       
+
+        
+
+      
+
         <div class="mb-8">
-          <h2 class="text-xl font-semibold text-gray-700 mb-4">Todo List Demo</h2>
-          <div class="flex gap-2 mb-4 flex-wrap">
+          <h2 class="text-3xl font-bold mb-6 text-black">Todo List Demo</h2>
+
+          <div class="mb-6 flex gap-3">
             <input
               type="text"
               id="todoInput"
               placeholder="Enter todo item..."
-              class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="flex-1 px-4 py-3 border border-black focus:outline-none focus:ring-2 focus:ring-black text-lg"
             />
             <button
               onclick="addTodo()"
-              class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+              class="px-6 py-3 bg-black text-white font-medium hover:bg-gray-800 transition-colors"
             >
               Add Todo
             </button>
             <button
               onclick="clearCompleted()"
-              class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
+              class="px-6 py-3 border border-black bg-white text-black font-medium hover:bg-gray-100 transition-colors"
             >
               Clear Completed
             </button>
             <button
               onclick="loadTodos()"
-              class="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
+              class="px-6 py-3 border border-black bg-white text-black font-medium hover:bg-gray-100 transition-colors"
             >
               Reload
             </button>
           </div>
-          <div id="todoList" class="space-y-2">
+
+          <div id="todoList" class="space-y-3 mb-8">
             {Object.entries(initialTodos).map(([id, todo]) => (
-              <div class={`flex items-center gap-3 p-3 border border-gray-200 rounded-md ${todo.completed ? 'bg-gray-50 opacity-75' : 'bg-white'}`}>
+              <div class="flex items-center gap-3 p-3 border border-black">
                 <input
                   type="checkbox"
                   checked={todo.completed}
                   onchange={`toggleTodo('${id}')`}
-                  class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                  class="w-5 h-5 accent-black"
                 />
-                <span class={`${todo.completed ? 'line-through text-gray-500' : 'text-gray-800'} flex-1`}>
+                <span class={`flex-1 text-lg ${todo.completed ? 'line-through text-gray-500' : 'text-black'}`}>
                   {todo.text}
                 </span>
                 <button
                   onclick={`deleteTodo('${id}')`}
-                  class="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors"
+                  class="px-4 py-2 bg-black text-white font-medium hover:bg-gray-800 transition-colors"
                 >
                   Delete
                 </button>
@@ -158,14 +190,18 @@ const TodoApp = ({ initialTodos = {}, userId }: { initialTodos?: Record<string, 
           </div>
         </div>
 
-        <div class="mb-4">
-          <h2 class="text-xl font-semibold text-gray-700 mb-4">Raw Store Data</h2>
-          <div class="mb-2 text-xs text-gray-500">
-            Storage: <span id="storageUsed">{JSON.stringify({ tables: { todos: initialTodos }, values: {} }).length}</span> bytes / 128MB DO limit
+        <div class="mb-8">
+          <h2 class="text-3xl font-bold mb-4 text-black">Raw Store Data</h2>
+
+          <div class="mb-4 text-black">
+            <span>
+              Storage: <span id="storageUsed">{JSON.stringify({ tables: { todos: initialTodos }, values: {} }).length}</span> bytes / 128MB DO limit
+            </span>
           </div>
-          <pre id="storeData" class="bg-gray-50 border border-gray-200 rounded-md p-4 text-sm overflow-auto max-h-64">
-            {JSON.stringify({ tables: { todos: initialTodos }, values: {} }, null, 2)}
-          </pre>
+
+          <div class="bg-black text-white p-4 font-mono text-sm overflow-x-auto">
+            <pre id="storeData">{JSON.stringify({ tables: { todos: initialTodos }, values: {} }, null, 2)}</pre>
+          </div>
         </div>
 
         <div id="status"></div>
@@ -234,20 +270,20 @@ const TodoApp = ({ initialTodos = {}, userId }: { initialTodos?: Record<string, 
           todoList.innerHTML = '';
           Object.entries(todos).forEach(([id, todo]) => {
             const div = document.createElement('div');
-            div.className = \`flex items-center gap-3 p-3 border border-gray-200 rounded-md \${todo.completed ? 'bg-gray-50 opacity-75' : 'bg-white'}\`;
+            div.className = 'flex items-center gap-3 p-3 border border-black';
             div.innerHTML = \`
               <input
                 type="checkbox"
                 \${todo.completed ? 'checked' : ''}
                 onchange="toggleTodo('\${id}')"
-                class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                class="w-5 h-5 accent-black"
               >
-              <span class="\${todo.completed ? 'line-through text-gray-500' : 'text-gray-800'} flex-1">
+              <span class="flex-1 text-lg \${todo.completed ? 'line-through text-gray-500' : 'text-black'}">
                 \${todo.text}
               </span>
               <button
                 onclick="deleteTodo('\${id}')"
-                class="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors"
+                class="px-4 py-2 bg-black text-white font-medium hover:bg-gray-800 transition-colors"
               >
                 Delete
               </button>
@@ -276,10 +312,10 @@ const TodoApp = ({ initialTodos = {}, userId }: { initialTodos?: Record<string, 
           const statusEl = document.getElementById('connectionStatus');
           if (connected) {
             statusEl.textContent = 'Connected';
-            statusEl.className = 'px-2 py-1 rounded text-xs font-semibold bg-green-100 text-green-800';
+            statusEl.className = 'px-2 py-1 bg-black text-white text-sm font-medium';
           } else {
             statusEl.textContent = 'Disconnected';
-            statusEl.className = 'px-2 py-1 rounded text-xs font-semibold bg-red-100 text-red-800';
+            statusEl.className = 'px-2 py-1 bg-gray-500 text-white text-sm font-medium';
           }
         }
 
